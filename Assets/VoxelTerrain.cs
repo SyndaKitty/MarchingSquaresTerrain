@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -8,9 +7,14 @@ public class VoxelTerrain : MonoBehaviour
     MeshFilter meshFilter;
     PolygonCollider2D collider;
 
-    const int MeshSize = 20;
-    float[,] terrain = new float[MeshSize,MeshSize];
+    const int TerrainSize = 20;
 
+    // Terrain stores a 2D array of points (voxels). Each voxel is considered
+    // solid if it is > 0. Every 4 voxels in a square make up a voxel configuration
+    // that is used to generate a mesh and collider.
+    float[,] terrain = new float[TerrainSize,TerrainSize];
+
+    // For looping through adjacent voxels
     Vector2Int[] offsets =
     {
         new Vector2Int(0, 0),
@@ -19,6 +23,9 @@ public class VoxelTerrain : MonoBehaviour
         new Vector2Int(0, 1),
     };
     
+    // The 4 cardinal and 4 diagonal points for a given voxel
+    // Used when constructing the mesh
+    // basePoints[pointIndex] -> point position
     Vector3[] basePoints = new[]
     {
         new Vector3(0   , 0   , 0),
@@ -31,6 +38,8 @@ public class VoxelTerrain : MonoBehaviour
         new Vector3(0.5f, 1, 0)
     };
     
+    // The index of the points for a given voxel configuration
+    // pointLookup[configuration,pointNumber] -> pointIndex in basePoints
     int[,] pointLookup = new[,]
     {
         { -1,-1,-1,-1,-1,-1 },
@@ -51,6 +60,9 @@ public class VoxelTerrain : MonoBehaviour
         {  0, 2, 3, 1,-1,-1 }
     };
 
+    // The mesh triangle indices to use for a given voxel configuration
+    // Used to tell the mesh how the triangles are constructed
+    // indexLookup[configuration, indexNum] -> meshTriangleIndex
     int[,] indexLookup = new[,]
     {
         { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 },
@@ -71,6 +83,9 @@ public class VoxelTerrain : MonoBehaviour
         {  0, 1, 2, 0, 2, 3,-1,-1,-1,-1,-1,-1 }
     };
     
+    // Lookup to determine which edge connect to which given a voxel configuration
+    // 0: down, 1: left, 2: right, 3: up
+    // edgeConnections[configuration, edgeInput] -> edgeOutput
     int[,] edgeConnections = new[,]
     {
         { -1,-1,-1,-1 },
@@ -91,26 +106,8 @@ public class VoxelTerrain : MonoBehaviour
         { -1,-1,-1,-1 }
     };
 
-    int[] firstEdgeConnection = new[]
-    {
-        -1,
-        0,
-        0,
-        1,
-        2,
-        0,
-        0,
-        1,
-        1,
-        0,
-        0,
-        2,
-        1,
-        0,
-        0,
-        -1
-    };
-    
+    // Lookup to determine where an edge leads
+    // edgeOffset[edge] -> voxel offset
     Vector2Int[] edgeOffset = new[]
     {
         new Vector2Int(0, -1),
@@ -124,11 +121,12 @@ public class VoxelTerrain : MonoBehaviour
         meshFilter = GetComponent<MeshFilter>();
         collider = GetComponent<PolygonCollider2D>();
 
-        for (int x = 0; x < MeshSize; x++)
+        // Generate random terrain
+        for (int x = 0; x < TerrainSize; x++)
         {
-            for (int y = 0; y < MeshSize; y++)
+            for (int y = 0; y < TerrainSize; y++)
             {
-                if (x == 0 || y == 0 || x == MeshSize - 1 || y == MeshSize - 1)
+                if (x == 0 || y == 0 || x == TerrainSize - 1 || y == TerrainSize - 1)
                 {
                     terrain[x, y] = -1;
                 }
@@ -136,80 +134,15 @@ public class VoxelTerrain : MonoBehaviour
             }
         }
 
-        terrain[0, 0] = 0;
-        terrain[1, 0] = 0;
-        terrain[2, 0] = 0;
-        terrain[3, 0] = 0;
-        terrain[4, 0] = 0;
-        terrain[5, 0] = 0;
-        terrain[6, 0] = 0;
-
-        terrain[0, 1] = 0;
-        terrain[1, 1] = 1;
-        terrain[2, 1] = 0;
-        terrain[3, 1] = 1;
-        terrain[4, 1] = 1;
-        terrain[5, 1] = 0;
-        terrain[6, 1] = 0;
-
-        terrain[0, 2] = 0;
-        terrain[1, 2] = 1;
-        terrain[2, 2] = 1;
-        terrain[3, 2] = 1;
-        terrain[4, 2] = 0;
-        terrain[5, 2] = 1;
-        terrain[6, 2] = 0;
-
-        terrain[0, 3] = 0;
-        terrain[1, 3] = 0;
-        terrain[2, 3] = 1;
-        terrain[3, 3] = 1;
-        terrain[4, 3] = 1;
-        terrain[5, 3] = 0;
-        terrain[6, 3] = 0;
-
-        terrain[0, 4] = 0;
-        terrain[1, 4] = 0;
-        terrain[2, 4] = 0;
-        terrain[3, 4] = 1;
-        terrain[4, 4] = 1;
-        terrain[5, 4] = 0;
-        terrain[6, 4] = 0;
-
-        terrain[0, 5] = 0;
-        terrain[1, 5] = 1;
-        terrain[2, 5] = 0;
-        terrain[3, 5] = 0;
-        terrain[4, 5] = 0;
-        terrain[5, 5] = 1;
-        terrain[6, 5] = 0;
-
-        terrain[0, 6] = 0;
-        terrain[1, 6] = 0;
-        terrain[2, 6] = 0;
-        terrain[3, 6] = 0;
-        terrain[4, 6] = 0;
-        terrain[5, 6] = 0;
-        terrain[6, 6] = 0;
-
-        //terrain[2, 1] = 1;
-        //terrain[1, 2] = 1;
-        //terrain[3, 2] = 1;
-        //terrain[2, 3] = 1;
-        
-        StartCoroutine(CalculateMesh());
-    }
-    
-    void Update()
-    {
-        
+        CalculateMesh();
     }
 
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
-        for (int y = 0; y < MeshSize; y++)
+        // Give a representation of the terrain
+        for (int y = 0; y < TerrainSize; y++)
         {
-            for (int x = 0; x < MeshSize; x++)
+            for (int x = 0; x < TerrainSize; x++)
             {
                 if (terrain[x, y] > 0)
                 {
@@ -222,39 +155,25 @@ public class VoxelTerrain : MonoBehaviour
                 Gizmos.DrawSphere(new Vector3(x, y, 0), 0.1f);
             }
         }
-
-        Gizmos.color = Color.white;
-        for (int i = 0; i < pathPoints.Count - 1; i++)
-        {
-            Gizmos.DrawLine(pathPoints[i], pathPoints[i + 1]);
-        }
-        
-        foreach (var key in edgePoints.Keys)
-        {
-            Gizmos.color = new Color(1, 0.2f, 0.2f, edgePoints[key] * 0.2f);
-            Gizmos.DrawCube((Vector3Int)key + Vector3.one * 0.5f, Vector3.one);
-        }
     }
 
-    List<Vector2> pathPoints = new List<Vector2>();
-    Dictionary<Vector2Int, int> edgePoints = new Dictionary<Vector2Int, int>();
-    
-    IEnumerator CalculateMesh()
+    void CalculateMesh()
     {
+        // Mesh info
         List<Vector3> points = new List<Vector3>();
         List<int> indices = new List<int>();
 
         Vector3 offsetPoint = Vector3.zero;
         int indexOffset = 0;
         
-        // Dictionary<Vector2Int, int> edgePoints = new Dictionary<Vector2Int, int>();
-        int[,] lookupGrid = new int[MeshSize,MeshSize];
+        // Track which voxel configurations have edges
+        Dictionary<Vector2Int, int> edgePoints = new Dictionary<Vector2Int, int>();
+        // Remember the configuration(lookup) for each voxel square
+        int[,] lookupGrid = new int[TerrainSize,TerrainSize];
 
-        Mesh mesh;
-
-        for (int y = 0; y < MeshSize - 1; y++)
+        for (int y = 0; y < TerrainSize - 1; y++)
         {
-            for (int x = 0; x < MeshSize - 1; x++)
+            for (int x = 0; x < TerrainSize - 1; x++)
             {
                 offsetPoint.x = x;
                 offsetPoint.y = y;
@@ -291,31 +210,22 @@ public class VoxelTerrain : MonoBehaviour
                     indices.Add(index + indexOffset);
                 }
                 indexOffset += tempIndexOffset;
-
-                mesh = meshFilter.mesh;
-                mesh.Clear();
-                mesh.vertices = points.ToArray();
-                mesh.triangles = indices.ToArray();
-                mesh.RecalculateNormals();
-                mesh.RecalculateBounds();
-                yield return new WaitForSeconds(.01f);
             }
         }
         
-        mesh = meshFilter.mesh;
+        var mesh = meshFilter.mesh;
         mesh.Clear();
         mesh.vertices = points.ToArray();
         mesh.triangles = indices.ToArray();
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         
-        
         // Calculate polygon collider
         collider.pathCount = 0;
         
         while (edgePoints.Any())
         {
-            // List<Vector2> pathPoints = new List<Vector2>();
+            List<Vector2> pathPoints = new List<Vector2>();
             
             // Starting at the first point in the queue
             var point = edgePoints.Keys.First();
@@ -327,8 +237,6 @@ public class VoxelTerrain : MonoBehaviour
             if (edgePoints[point] <= 0) edgePoints.Remove(point);
             
             // Find the first valid edge for the point
-            int fromEdge = firstEdgeConnection[lookup];
-            
             for (int i = 0; i < 4; i++)
             {
                 int connection = edgeConnections[lookup, i];
@@ -343,27 +251,25 @@ public class VoxelTerrain : MonoBehaviour
 
             point += edgeOffset[nextConnection];
             
+            // Keep following the edges that are connected to our starting point
+            // until we reach our starting again
             while (edgePoints.ContainsKey(point))
             {
                 edgePoints[point] = edgePoints[point] - 1;
                 if (edgePoints[point] <= 0) edgePoints.Remove(point);
                 
+                // The 'up' edge from the voxel below us is our 'down' edge. Same with left/right, etc.
+                // This is a nice trick to do this conversion
                 int incomingEdge = 3 - nextConnection;
                 
+                // Add 4 to get the cardinal points instead of diagonals
                 pathPoints.Add(basePoints[incomingEdge + 4] + (Vector3Int)point);
                 
                 lookup = lookupGrid[point.x, point.y];
                 nextConnection = edgeConnections[lookup, incomingEdge];
                 var nextPoint = point + edgeOffset[nextConnection];
 
-                if (!edgePoints.ContainsKey(point))
-                {
-                    pathPoints.Add(basePoints[nextConnection + 4] + (Vector3Int)point);
-                }
-
                 point = nextPoint;
-
-                yield return new WaitForSeconds(0.03f);
             }
             
             collider.pathCount++;
