@@ -35,7 +35,7 @@ public class VoxelChunk : MonoBehaviour
         Gizmos.color = new Color(1, 0, 0, 0.2f);
         foreach (var point in edgePoints.Keys)
         {
-            Gizmos.DrawCube(transform.position + (Vector3Int)point, Vector3.one);
+            Gizmos.DrawCube(transform.position + (Vector3Int)point + Vector3.one * 0.5f, Vector3.one);
         }
     }
 
@@ -160,8 +160,8 @@ public class VoxelChunk : MonoBehaviour
             // Chunk Bottom-right
             { -1,-1,-1,-1 }, { -1,-1,-1,-1 }, { -1,-1,-1,-1 }, { -1,-1,-1,-1 },
             { -1,-1,-1,-1 }, { -1,-1,-1,-1 }, { -1,-1,-1,-1 }, { -1,-1,-1,-1 },
-            {  3,-1,-1, 0 }, {  3,-1,-1, 0 }, {  3,-1,-1, 0 }, {  3,-1,-1, 0 },
-            {  3,-1,-1, 0 }, {  3,-1,-1, 0 }, {  3,-1,-1, 0 }, {  3,-1,-1, 0 }
+            { -1, 3,-1, 1 }, { -1, 3,-1, 1 }, { -1, 3,-1, 1 }, { -1, 3,-1, 1 },
+            { -1, 3,-1, 1 }, { -1, 3,-1, 1 }, { -1, 3,-1, 1 }, { -1, 3,-1, 1 }
         },
         {
             // Chunk Top-left
@@ -179,6 +179,90 @@ public class VoxelChunk : MonoBehaviour
         },
     };
 
+    static int[][][] extraEdgePoint =
+    {
+        // Chunk Center 
+        new []
+        {
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] { }, new int[] { }, new int[] { }
+        },
+        
+        // Chunk Bottom
+        new []
+        {
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] {1}, new int[] {4}, new int[] {1},
+            new int[] { }, new int[] {4}, new int[] {2}, new int[] {2},
+            new int[] { }, new int[] { }, new int[] { }, new int[] { }
+        },                                                           
+                                                                     
+        // Chunk Left                                                
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] {4},
+            new int[] { }, new int[] {0}, new int[] { }, new int[] { },
+            new int[] { }, new int[] { }, new int[] {3}, new int[] {3},
+            new int[] {4}, new int[] {0}, new int[] { }, new int[] { }
+        },                                                           
+                                                                     
+        // Chunk Right                                               
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] {4},
+            new int[] { }, new int[] {3}, new int[] { }, new int[] {3},
+            new int[] { }, new int[] { }, new int[] {0}, new int[] { },
+            new int[] {4}, new int[] { }, new int[] {0}, new int[] { }
+        },                                                           
+                                                                     
+        // Chunk Up                                                  
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] {2}, new int[] {4}, new int[] { },
+            new int[] { }, new int[] {4}, new int[] {1}, new int[] { },
+            new int[] { }, new int[] {2}, new int[] {1}, new int[] { }
+        },                                                           
+                                                                     
+        // Chunk Bottom-left                                         
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] {0}, new int[] {4}, new int[] {1},
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] {4}, new int[] {0}, new int[] {4}, new int[] {4}
+        },                                                           
+                                                                     
+        // Chunk Bottom-right                                        
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] { }, new int[] { }, new int[] { },
+            new int[] { }, new int[] {4}, new int[] {2}, new int[] {2},
+            new int[] {4}, new int[] {4}, new int[] {0}, new int[] {4}
+        },                                                           
+                                                                     
+        // Chunk Top-left                                            
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] {4},
+            new int[] { }, new int[] { }, new int[] {4}, new int[] {4},
+            new int[] { }, new int[] { }, new int[] {1}, new int[] {3},
+            new int[] { }, new int[] { }, new int[] {1}, new int[] {4}
+        },
+
+        // Chunk Top-right
+        new []                                                       
+        {                                                            
+            new int[] { }, new int[] { }, new int[] { }, new int[] {4},
+            new int[] { }, new int[] {3}, new int[] { }, new int[] {3},
+            new int[] { }, new int[] {4}, new int[] { }, new int[] {4},
+            new int[] { }, new int[] {2}, new int[] { }, new int[] {4}
+        }
+    };
+
     //  7   4   8
     //   |-----|
     // 2 |  0  | 3 
@@ -188,8 +272,8 @@ public class VoxelChunk : MonoBehaviour
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     int ChunkEdgeIndex(int x, int y) => ChunkEdgeLookup[
-        Mathf.CeilToInt((float)x / (Size - 1)) + 
-        Mathf.CeilToInt((float)y / (Size - 1)) * 3];
+        Mathf.CeilToInt((float)x / (Size - 2)) + 
+        Mathf.CeilToInt((float)y / (Size - 2)) * 3];
 
     // Probably can avoid this lookup table by just adding all chunk edges, then checking for -1 when following edges
     // int[,] ValidEdgeLookup = new[]
@@ -267,7 +351,13 @@ public class VoxelChunk : MonoBehaviour
                 }
 
                 lookupGrid[x, y] = lookup;
-                chunkEdgeLookup[x, y] = ChunkEdgeIndex(x, y);
+                int chunkEdge = ChunkEdgeIndex(x, y);
+                chunkEdgeLookup[x, y] = chunkEdge;
+
+                if (lookup > 0 && lookup < 15 || chunkEdge != 0)
+                {
+                    edgePoints.Add(new Vector2Int(x, y), chunkEdge == 0 && (lookup == 5 || lookup == 10) ? 2 : 1);
+                }
             }
         }
 
@@ -281,11 +371,6 @@ public class VoxelChunk : MonoBehaviour
 
                 int lookup = lookupGrid[x, y];
                 int chunkEdge = chunkEdgeLookup[x, y];
-
-                if (x < Size - 1 && y < Size - 1 && (lookup > 0 && lookup < 15 || chunkEdge != 0))
-                {
-                    edgePoints.Add(new Vector2Int(x, y), chunkEdge == 0 && (lookup == 5 || lookup == 10) ? 2 : 1);
-                }
 
                 // Add points
                 int tempIndexOffset = 0;
@@ -341,6 +426,11 @@ public class VoxelChunk : MonoBehaviour
                 if (connection >= 0 && edgePoints.ContainsKey(point + edgeOffset[connection]))
                 {
                     pathPoints.Add(basePoints[i + 4] + (Vector3Int)point);
+                    var extraPoints = extraEdgePoint[chunkEdge][lookup];
+                    for (int e = 0; e < extraPoints.Length; e++)
+                    {
+                        pathPoints.Add(basePoints[extraPoints[e]] + (Vector3Int)point);
+                    }
                     nextConnection = connection;
                     break;
                 }
@@ -355,6 +445,7 @@ public class VoxelChunk : MonoBehaviour
             // until we reach our starting again
             while (point != startingPoint)
             {
+                int chunkEdge = ChunkEdgeIndex(point.x, point.y);
                 edgePoints[point] = edgePoints[point] - 1;
                 if (edgePoints[point] <= 0) edgePoints.Remove(point);
                 
@@ -364,9 +455,14 @@ public class VoxelChunk : MonoBehaviour
                 
                 // Add 4 to get the cardinal points instead of diagonals
                 pathPoints.Add(basePoints[incomingEdge + 4] + (Vector3Int)point);
-                yield return new WaitForSeconds(0.5f);
-                
-                int chunkEdge = ChunkEdgeIndex(point.x, point.y);
+                var extraPoints = extraEdgePoint[chunkEdge][lookup];
+                for (int e = 0; e < extraPoints.Length; e++)
+                {
+                    pathPoints.Add(basePoints[extraPoints[e]] + (Vector3Int)point);
+                }
+
+                yield return new WaitForSeconds(0.1f);
+
                 lookup = lookupGrid[point.x,point.y];
                 nextConnection = edgeConnections[chunkEdge, lookup, incomingEdge];
                 var nextPoint = point + edgeOffset[nextConnection];
